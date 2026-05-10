@@ -5,10 +5,10 @@ FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
 #create frps directory if it doesn't exist
 if [ -e ${FRP_PATH} ]; then
-    echo "..."
+    rm -rf ${FRP_PATH}
 else
     mkdir -p ${FRP_PATH}
-
+fi
 echo "Installing frps for Alpine Linux..."
 # Download and install frps
 wget -qO frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
