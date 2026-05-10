@@ -75,6 +75,7 @@ maxPortsPerClient = 8
 udpPacketSize = 1500
 natholeAnalysisDataReserveHours = 168
 EOL
+echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
 
 createRcService() {
@@ -105,5 +106,4 @@ createDir
 downloadFrps
 createFrpsConfig
 createRcService
-echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
-
+echo "frps setup completed successfully."
