@@ -3,21 +3,36 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
-#create frps directory if it doesn't exist
-if [ -e ${FRP_PATH} ]; then
-    rm -rf ${FRP_PATH}
-else
-    mkdir -p ${FRP_PATH}
-fi
-echo "Installing frps for Alpine Linux..."
-# Download and install frps
-wget -qO ${FRP_PATH}/frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
-tar -zxvf ${FRP_PATH}/frps.tar.gz
-cp ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
-chmod +x ${FRP_PATH}/frps
-# Clean up
-rm ${FRP_PATH}/frps.tar.gz
-rm -rf ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64
+
+createDir() {
+    if [ ! -d "$FRP_PATH" ]; then
+        mkdir -p "$FRP_PATH"
+        echo "Created directory: $FRP_PATH"
+    else
+        rm -rf "$FRP_PATH"
+        echo "Directory already exists, cleared: $FRP_PATH"
+    fi
+}
+
+downloadFrps() {
+    echo "Installing frps for Alpine Linux..."
+    # Download and install frps
+    wget -qO ${FRP_PATH}/frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
+    if [ -e ${FRP_PATH}/frps.tar.gz ]; then
+        echo "Downloaded frps version ${FRP_VERSION} successfully."
+    else
+        echo "Failed to download frps version ${FRP_VERSION}."
+        exit 1
+    fi
+    tar -zxvf ${FRP_PATH}/frps.tar.gz
+    cp ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
+    chmod +x ${FRP_PATH}/frps
+    # Clean up
+    rm ${FRP_PATH}/frps.tar.gz
+    rm -rf ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64
+}
+
+createFrpsConfig() {
 # init frps.toml
 cat > ${FRP_PATH}/frps.toml <<EOL
 # frps.toml - FRP 服务端配置文件
@@ -60,8 +75,14 @@ maxPortsPerClient = 8
 udpPacketSize = 1500
 natholeAnalysisDataReserveHours = 168
 EOL
-echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
-#create systemd service file
+}
+
+createRcService() {
+    if [ -e /etc/init.d/frps ]; then
+        echo "frps service already exists. Skipping creation."
+        rm /etc/init.d/frps 
+    fi
+    #create systemd service file
 cat > /etc/init.d/frps <<EOL
 #!/sbin/openrc-run
 
@@ -78,3 +99,11 @@ EOL
 chmod +x /etc/init.d/frps
 rc-update add frps default
 echo "frps service created and added to default runlevel. You can start it with 'rc-service frps start'."
+}
+
+createDir
+downloadFrps
+createFrpsConfig
+createRcService
+echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
+
