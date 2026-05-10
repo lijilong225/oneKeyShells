@@ -30,19 +30,19 @@ downloadFrps() {
     cp frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
     chmod +x ${FRP_PATH}/frps
     # Clean up
-    #rm frps.tar.gz
-    #rm -rf frp_${FRP_VERSION}_linux_amd64
+    rm frps.tar.gz
+    rm -rf frp_${FRP_VERSION}_linux_amd64
 }
 
 createFrpsConfig() {
 # init frps.toml
 cat > ./frps.toml <<EOL
-# frps.toml - FRP 服务端配置文件
+# frps.toml - FRP Server Configuration
 bindAddr = "0.0.0.0"
 bindPort = 7000
-#UDP 弱网环境下传输效率提升明显
+#UDP Port for KCP, if you want to use KCP, uncomment the following line and set the port
 #kcpBindPort = 7000
-# QUIC 绑定的是 UDP 端口，可以和 bindPort 一样
+# QUIC Port for QUIC, if you want to use QUIC, uncomment the following line and set the port
 quicBindPort = 7000
 
 vhostHTTPPort = 80
@@ -108,5 +108,4 @@ downloadFrps
 createFrpsConfig
 createRcService
 echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
-# cd /root
 
