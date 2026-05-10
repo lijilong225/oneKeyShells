@@ -5,7 +5,7 @@ FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
 
 createDir() {
-    if [ ! -d "$FRP_PATH" ]; then
+    if [ ! -e "$FRP_PATH" ]; then
         mkdir -p "$FRP_PATH"
         echo "Created directory: $FRP_PATH"
     else
@@ -36,7 +36,7 @@ downloadFrps() {
 
 createFrpsConfig() {
 # init frps.toml
-cat > ${FRP_PATH}/frps.toml <<EOL
+cat > ./frps.toml <<EOL
 # frps.toml - FRP 服务端配置文件
 bindAddr = "0.0.0.0"
 bindPort = 7000
@@ -108,5 +108,5 @@ downloadFrps
 createFrpsConfig
 createRcService
 echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
-cd /root
+# cd /root
 
