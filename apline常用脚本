@@ -1,0 +1,6 @@
+#openlist
+wget -qO al.sh https://raw.githubusercontent.com/nightlightzero/alpine-openlist/main/alpine-openlist.sh
+ash al.sh
+#singbox
+bash <(wget -qO- https://raw.githubusercontent.com/fscarmen/sing-box/main/sing-box.sh)
+
