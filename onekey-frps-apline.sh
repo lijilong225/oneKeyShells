@@ -33,18 +33,16 @@ downloadFrps() {
 }
 
 createFrpsConfig() {
-# init frps.toml
-cat > ./frps.toml <<EOL
+    # init frps.toml
+    cat > ./frps.toml <<EOL
 # frps.toml - FRP Server Configuration
 bindAddr = "0.0.0.0"
 bindPort = 7000
-#UDP Port for KCP, if you want to use KCP, uncomment the following line and set the port
 #kcpBindPort = 7000
-# QUIC Port for QUIC, if you want to use QUIC, uncomment the following line and set the port
 quicBindPort = 7000
 
 vhostHTTPPort = 80
-#vhostHTTPSPort = 443
+vhostHTTPSPort = 443
 #subDomainHost = 'xxx'
 
 transport.maxPoolCount = 2000
@@ -55,11 +53,11 @@ transport.tls.force = false
 
 webServer.addr = "0.0.0.0"
 webServer.port = 7500
-webServer.user = "longfen"
-webServer.password = "123456"
+webServer.user = "admin"
+webServer.password = "admin123"
 webServer.pprofEnable = false
 
-log.to = "./frps.log"
+log.to = "${FRP_PATH}/frps.log"
 log.level = "info"
 log.maxDays = 3
 log.disablePrintColor = false
