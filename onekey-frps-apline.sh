@@ -5,13 +5,11 @@ FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
 
 createDir() {
-    if [ ! -e "$FRP_PATH" ]; then
-        mkdir -p "$FRP_PATH"
-        echo "Created directory: $FRP_PATH"
-    else
+    if [ -e "$FRP_PATH" ]; then
         rm -rf "$FRP_PATH"
-        echo "Directory already exists, cleared: $FRP_PATH"
     fi
+    mkdir -p "$FRP_PATH"
+    echo "Created directory: $FRP_PATH"
     #切换到frp目录
     cd $FRP_PATH
 }
