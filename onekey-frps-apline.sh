@@ -1,17 +1,25 @@
-echo "Installing frps for Alpine Linux..."
-# Download and install frps
-wget -qO frps.tar.gz https://github.com/fatedier/frp/releases/download/v0.68.1/frp_0.68.1_linux_amd64.tar.gz
-tar -zxvf frps.tar.gz
-if [ -e "/usr/local/frps" ]; then
+#!/usr/bin/env bash
+
+# variable
+FRP_VERSION=0.68.1
+FRP_PATH=/usr/local/frp
+#create frps directory if it doesn't exist
+if [ -e ${FRP_PATH} ]; then
     echo "..."
 else
-    mkdir -p /usr/local/frps
-cp frps /usr/local/frps
-chmod +x /usr/local/frps/frps
+    mkdir -p ${FRP_PATH}
+
+echo "Installing frps for Alpine Linux..."
+# Download and install frps
+wget -qO frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
+tar -zxvf frps.tar.gz
+cp ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
+chmod +x ${FRP_PATH}/frps
 # Clean up
 rm frps.tar.gz
+rm -rf ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64
 # init frps.toml
-cat > /usr/local/frps/frps.toml <<EOL
+cat > ${FRP_PATH}/frps.toml <<EOL
 # frps.toml - FRP 服务端配置文件
 bindAddr = "0.0.0.0"
 bindPort = 7000
@@ -52,14 +60,14 @@ maxPortsPerClient = 8
 udpPacketSize = 1500
 natholeAnalysisDataReserveHours = 168
 EOL
-echo "frps installation completed. Configuration file created at /usr/local/frps/frps.toml"
+echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 #create systemd service file
 cat > /etc/init.d/frps <<EOL
 #!/sbin/openrc-run
 
 name="frps"
-command="/usr/local/frp/frps"
-command_args="-c /usr/local/frp/frps.toml"
+command="${FRP_PATH}/frps"
+command_args="-c ${FRP_PATH}/frps.toml"
 pidfile="/run/$RC_SVCNAME.pid"
 command_background=true
 
