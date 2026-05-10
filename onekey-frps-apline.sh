@@ -100,8 +100,35 @@ rc-update add frps default
 echo "frps service created and added to default runlevel. You can start it with 'rc-service frps start'."
 }
 
-createDir
-downloadFrps
-createFrpsConfig
-createRcService
-echo "frps setup completed successfully."
+install() {
+    createDir
+    downloadFrps
+    createFrpsConfig
+    createRcService
+    echo "frps setup completed successfully."
+}
+
+uninstall() {
+    rc-service frps stop
+    echo "Uninstalling frps..."
+    rc-update del frps default
+    rm -f /etc/init.d/frps
+    rm -rf $FRP_PATH
+    echo "frps uninstalled successfully."
+}
+
+echo "chose install frps for Alpine Linux or uninstall."
+echo "1) Install frps"
+echo "2) Uninstall frps"
+read -p "Enter your choice (1/2): " choice
+case $choice in
+    1)
+        install
+        ;;
+    2)
+        uninstall
+        ;;
+    *)
+        echo "Invalid choice."
+        ;;
+esac
