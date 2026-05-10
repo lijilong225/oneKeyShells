@@ -13,7 +13,7 @@ echo "Installing frps for Alpine Linux..."
 # Download and install frps
 wget -qO ${FRP_PATH}/frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
 tar -zxvf ${FRP_PATH}/frps.tar.gz
-mv ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
+cp ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
 chmod +x ${FRP_PATH}/frps
 # Clean up
 rm ${FRP_PATH}/frps.tar.gz
