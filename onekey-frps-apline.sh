@@ -12,24 +12,26 @@ createDir() {
         rm -rf "$FRP_PATH"
         echo "Directory already exists, cleared: $FRP_PATH"
     fi
+    #切换到frp目录
+    cd $FRP_PATH
 }
 
 downloadFrps() {
     echo "Installing frps for Alpine Linux..."
     # Download and install frps
-    wget -qO ${FRP_PATH}/frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
-    if [ -e ${FRP_PATH}/frps.tar.gz ]; then
+    wget -qO frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
+    if [ -e frps.tar.gz ]; then
         echo "Downloaded frps version ${FRP_VERSION} successfully."
     else
         echo "Failed to download frps version ${FRP_VERSION}."
         exit 1
     fi
-    tar -zxvf ${FRP_PATH}/frps.tar.gz
-    cp ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
+    tar -zxvf frps.tar.gz
+    cp frp_${FRP_VERSION}_linux_amd64/frps ${FRP_PATH}
     chmod +x ${FRP_PATH}/frps
     # Clean up
-    rm ${FRP_PATH}/frps.tar.gz
-    rm -rf ${FRP_PATH}/frp_${FRP_VERSION}_linux_amd64
+    #rm frps.tar.gz
+    #rm -rf frp_${FRP_VERSION}_linux_amd64
 }
 
 createFrpsConfig() {
@@ -106,4 +108,5 @@ downloadFrps
 createFrpsConfig
 createRcService
 echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
+cd /root
 
