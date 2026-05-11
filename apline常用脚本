@@ -4,4 +4,4 @@ ash al.sh
 #singbox
 bash <(wget -qO- https://raw.githubusercontent.com/fscarmen/sing-box/main/sing-box.sh)
 #frps
-bash <(wget -qO- https://raw.githubusercontent.com/lijilong225/oneKeyShells/main/onekey-frps-apline.sh)
+bash <(wget -qO- https://raw.githubusercontent.com/lijilong225/oneKeyShells/main/onekey-frps.sh)
