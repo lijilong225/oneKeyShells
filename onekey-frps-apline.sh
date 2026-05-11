@@ -5,6 +5,19 @@ FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
 SHELL_TYPE=1 #1 for apline, 2 for systemd
 
+checkSystemctl() {
+    echo "Checking init system..."
+    if command -v systemctl &> /dev/null; then
+        SHELL_TYPE=2
+    else if command -v rc-service &> /dev/null; then
+        SHELL_TYPE=1
+    else
+        echo "Neither systemctl nor rc-service command found. "
+        exit 1
+    fi
+    echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
+}
+
 createDir() {
     if [ -e "$FRP_PATH" ]; then
         rm -rf "$FRP_PATH"
@@ -58,7 +71,7 @@ webServer.user = "admin"
 webServer.password = "admin123"
 webServer.pprofEnable = false
 
-log.to = "${FRP_PATH}/frps.log"
+log.to = "./frps.log"
 log.level = "info"
 log.maxDays = 3
 log.disablePrintColor = false
@@ -124,24 +137,10 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
-checkSystemctl() {
-    echo "Checking init system..."
-    if command -v systemctl &> /dev/null; then
-        SHELL_TYPE=2
-    else if command -v rc-service &> /dev/null; then
-        SHELL_TYPE=1
-    else
-        echo "Neither systemctl nor rc-service command found. "
-        exit 1
-    fi
-    echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
-}
-
 install() {
     checkSystemctl
     createDir
     downloadFrps
-    # inputVars
     createFrpsConfig
     if [ $SHELL_TYPE -eq 2 ]; then
         createSystemdService
