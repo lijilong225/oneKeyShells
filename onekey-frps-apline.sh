@@ -3,7 +3,6 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
-SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -77,29 +76,6 @@ EOL
     echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
 
-# createSystemdService() {
-#     if [ -e /etc/systemd/system/frps.service ]; then
-#         rm /etc/systemd/system/frps.service 
-#     fi
-#     #create systemd service file    
-# cat > /etc/systemd/system/frps.service <<EOL
-# [Unit]
-# Description=FRP Server
-# After=network.target
-
-# [Service]
-# Type=simple
-# ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
-# Restart=always
-
-# [Install]
-# WantedBy=multi-user.target
-# EOL
-#     systemctl enable frps.service
-#     systemctl daemon-reload
-#     echo "frps service created."
-# }
-
 createRcService() {
     if [ -e /etc/init.d/frps ]; then
         echo "frps service already exists. Skipping creation."
@@ -128,29 +104,15 @@ install() {
     createDir
     downloadFrps
     createFrpsConfig
-    if [ $SHELL_TYPE -eq 2 ]; then
-        createSystemdService
-        echo "frps setup completed successfully. You can start it with 'systemctl start frps'."
-    else if [ $SHELL_TYPE -eq 1 ]; then
-        createRcService
-        echo "frps setup completed successfully. You can start it with 'rc-service frps start'."
-    fi
+    createRcService
 }
 
 uninstall() {
-    if [ $SHELL_TYPE -eq 2 ]; then
-        systemctl stop frps.service
-        echo "Uninstalling frps..."
-        systemctl disable frps.service
-        rm -f /etc/systemd/system/frps.service
-        rm -rf $FRP_PATH
-    else if [ $SHELL_TYPE -eq 1 ]; then
-        rc-service frps stop
-        echo "Uninstalling frps..."
-        rc-update del frps default
-        rm -f /etc/init.d/frps
-        rm -rf $FRP_PATH
-    fi
+    rc-service frps stop
+    echo "Uninstalling frps..."
+    rc-update del frps default
+    rm -f /etc/init.d/frps
+    rm -rf $FRP_PATH
     echo "frps uninstalled successfully."
 }
 
