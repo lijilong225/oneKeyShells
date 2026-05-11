@@ -21,25 +21,6 @@ checkShellType() {
     echo "Detected init system: $([ $SHELL_TYPE -eq 1 ] && echo "OpenRC" || echo "Systemd")"
 }
 
-selectShell() {
-    echo "Select init system:"
-    echo "1) OpenRC"
-    echo "2) Systemd"
-    read -p "Enter your choice (1/2): " shell_choice
-    case $shell_choice in
-        1)
-            SHELL_TYPE=1
-            ;;
-        2)
-            SHELL_TYPE=2
-            ;;
-        *)
-            echo "Invalid choice. Defaulting to OpenRC."
-            SHELL_TYPE=1
-            ;;
-    esac
-}
-
 createDir() {
     if [ -e "$FRP_PATH" ]; then
         rm -rf "$FRP_PATH"
@@ -137,6 +118,33 @@ EOL
     echo "to start frps service, run: rc-service frps start."
 }
 
+createSystemdService() {
+    if [ -e /etc/systemd/system/frps.service ]; then
+        echo "frps service already exists. Skipping creation."
+        rm /etc/systemd/system/frps.service
+    fi
+    #create systemd service file
+    cat > /etc/systemd/system/frps.service <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOL
+    systemctl daemon-reload
+    systemctl enable frps.service
+    echo "frps service created and enabled."
+    echo "to start frps service, run: systemctl start frps.service."
+}
+
 initFrpsVars() {
     read -p "Enter frps admin username (default: ${FRP_Admin_User}): " input_user
     read -p "Enter frps admin password (default: ${FRP_Admin_Password}): " input_password
@@ -156,14 +164,24 @@ install() {
     downloadFrps
     initFrpsVars
     createFrpsConfig
-    createRcService
+    if [ $SHELL_TYPE -eq 1 ]; then
+        createRcService
+    elif [ $SHELL_TYPE -eq 2 ]; then
+        createSystemdService
+    fi
 }
 
 uninstall() {
-    rc-service frps stop
-    echo "Uninstalling frps..."
-    rc-update del frps default
-    rm -f /etc/init.d/frps
+    if [ $SHELL_TYPE -eq 1 ]; then
+        rc-service frps stop
+        rc-update del frps default
+        rm /etc/init.d/frps
+    elif [ $SHELL_TYPE -eq 2 ]; then
+        systemctl stop frps.service
+        systemctl disable frps.service
+        rm /etc/systemd/system/frps.service
+        systemctl daemon-reload
+    fi
     rm -rf $FRP_PATH
     echo "frps uninstalled successfully."
 }
