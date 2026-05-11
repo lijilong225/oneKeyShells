@@ -3,6 +3,9 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
+FRP_Admin_User=admin
+FRP_Admin_Password=admin123
+FRP_Token=token123
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -100,9 +103,24 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
+initFrpsVars() {
+    read -p "Enter frps admin username (default: ${FRP_Admin_User}): " input_user
+    read -p "Enter frps admin password (default: ${FRP_Admin_Password}): " input_password
+    read -p "Enter frps auth token (default: ${FRP_Token}): " input_token
+
+    FRP_Admin_User=${input_user:-$FRP_Admin_User}
+    FRP_Admin_Password=${input_password:-$FRP_Admin_Password}
+    FRP_Token=${input_token:-$FRP_Token}
+
+    echo "Admin Username: $FRP_Admin_User"
+    echo "Admin Password: $FRP_Admin_Password"
+    echo "Auth Token: $FRP_Token"
+}
+
 install() {
     createDir
     downloadFrps
+    initFrpsVars
     createFrpsConfig
     createRcService
 }
