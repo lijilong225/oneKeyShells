@@ -5,20 +5,6 @@ FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
 SHELL_TYPE=1 #1 for apline, 2 for systemd
 
-checkSystemctl() {
-    echo "Checking init system..."
-    if [ command -v systemctl &> /dev/null ]; then
-        SHELL_TYPE=2
-        echo "Systemctl command found. Using systemd for service management."
-    else if [ command -v rc-service &> /dev/null ]; then
-        SHELL_TYPE=1
-        echo "rc-service command found. Using OpenRC for service management."
-    else
-        echo "Neither systemctl nor rc-service command found. "
-        exit 1
-    fi
-}
-
 createDir() {
     if [ -e "$FRP_PATH" ]; then
         rm -rf "$FRP_PATH"
@@ -138,8 +124,19 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
+selectShellType() {
+    if [ -d /run/openrc ]; then
+        SHELL_TYPE=1
+    else if [ -d /run/systemd ]; then
+        SHELL_TYPE=2
+    else
+        echo "Unsupported init system. Exiting."
+        exit 1
+    fi
+}
+
 install() {
-    checkSystemctl
+    selectShellType
     createDir
     downloadFrps
     createFrpsConfig
