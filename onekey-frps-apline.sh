@@ -77,28 +77,28 @@ EOL
     echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
 
-createSystemdService() {
-    if [ -e /etc/systemd/system/frps.service ]; then
-        rm /etc/systemd/system/frps.service 
-    fi
-    #create systemd service file    
-cat > /etc/systemd/system/frps.service <<EOL
-[Unit]
-Description=FRP Server
-After=network.target
+# createSystemdService() {
+#     if [ -e /etc/systemd/system/frps.service ]; then
+#         rm /etc/systemd/system/frps.service 
+#     fi
+#     #create systemd service file    
+# cat > /etc/systemd/system/frps.service <<EOL
+# [Unit]
+# Description=FRP Server
+# After=network.target
 
-[Service]
-Type=simple
-ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
-Restart=always
+# [Service]
+# Type=simple
+# ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
+# Restart=always
 
-[Install]
-WantedBy=multi-user.target
-EOL
-    systemctl enable frps.service
-    systemctl daemon-reload
-    echo "frps service created."
-}
+# [Install]
+# WantedBy=multi-user.target
+# EOL
+#     systemctl enable frps.service
+#     systemctl daemon-reload
+#     echo "frps service created."
+# }
 
 createRcService() {
     if [ -e /etc/init.d/frps ]; then
@@ -124,19 +124,7 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
-selectShellType() {
-    if [ -d /run/openrc ]; then
-        SHELL_TYPE=1
-    else if [ -d /run/systemd ]; then
-        SHELL_TYPE=2
-    else
-        echo "Unsupported init system. Exiting."
-        exit 1
-    fi
-}
-
 install() {
-    selectShellType
     createDir
     downloadFrps
     createFrpsConfig
