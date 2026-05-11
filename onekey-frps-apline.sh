@@ -3,14 +3,6 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
-# declare -i FRP_PORT=7000
-# declare -i FRP_WEB_PORT=7500
-# declare -i FRP_HTTP_PORT=80
-# declare -i FRP_HTTPS_PORT=443
-# FRP_TOKEN="token123"
-# FRP_WebUser="admin"
-# FRP_WebPassword="admin123"
-# FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
 SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 createDir() {
@@ -46,13 +38,13 @@ createFrpsConfig() {
     cat > ./frps.toml <<EOL
 # frps.toml - FRP Server Configuration
 bindAddr = "0.0.0.0"
-bindPort = ${FRP_PORT}
-#kcpBindPort = ${FRP_PORT}
-quicBindPort = ${FRP_PORT}
+bindPort = 7000
+#kcpBindPort = 7000
+quicBindPort = 7000
 
-vhostHTTPPort = ${FRP_HTTP_PORT}
-vhostHTTPSPort = ${FRP_HTTPS_PORT}
-${FRP_SubDomainHost}
+vhostHTTPPort = 80
+vhostHTTPSPort = 443
+#subDomainHost = 'xxx.com'
 
 transport.maxPoolCount = 2000
 transport.tcpMux = true
@@ -61,9 +53,9 @@ transport.tcpKeepalive = 7200
 transport.tls.force = false
 
 webServer.addr = "0.0.0.0"
-webServer.port = ${FRP_WEB_PORT}
-webServer.user = ${FRP_WebUser}
-webServer.password = ${FRP_WebPassword}
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "admin123"
 webServer.pprofEnable = false
 
 log.to = "${FRP_PATH}/frps.log"
@@ -72,7 +64,7 @@ log.maxDays = 3
 log.disablePrintColor = false
 
 auth.method = "token"
-auth.token = ${FRP_TOKEN}
+auth.token = "token123"
 
 allowPorts = [
   { start = 10001, end = 50000 }
