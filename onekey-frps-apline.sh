@@ -178,7 +178,8 @@ checkSystemctl() {
 }
 
 install() {
-    # checkSystemctl
+    echo "Starting frps installation..."
+    checkSystemctl
     createDir
     downloadFrps
     inputVars
