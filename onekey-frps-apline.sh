@@ -3,6 +3,14 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
+FRP_PORT=7000
+FRP_WEB_PORT=7500
+FRP_HTTP_PORT=80
+FRP_HTTPS_PORT=443
+FRP_TOKEN=token123
+FRP_WebUser=admin
+FRP_WebPassword=admin123
+FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -37,13 +45,13 @@ createFrpsConfig() {
     cat > ./frps.toml <<EOL
 # frps.toml - FRP Server Configuration
 bindAddr = "0.0.0.0"
-bindPort = 7000
-#kcpBindPort = 7000
-quicBindPort = 7000
+bindPort = ${FRP_PORT}
+#kcpBindPort = ${FRP_PORT}
+quicBindPort = ${FRP_PORT}
 
-vhostHTTPPort = 80
-vhostHTTPSPort = 443
-#subDomainHost = 'xxx'
+vhostHTTPPort = ${FRP_HTTP_PORT}
+vhostHTTPSPort = ${FRP_HTTPS_PORT}
+${FRP_SubDomainHost}
 
 transport.maxPoolCount = 2000
 transport.tcpMux = true
@@ -52,9 +60,9 @@ transport.tcpKeepalive = 7200
 transport.tls.force = false
 
 webServer.addr = "0.0.0.0"
-webServer.port = 7500
-webServer.user = "admin"
-webServer.password = "admin123"
+webServer.port = ${FRP_WEB_PORT}
+webServer.user = "${FRP_WebUser}"
+webServer.password = "${FRP_WebPassword}"
 webServer.pprofEnable = false
 
 log.to = "${FRP_PATH}/frps.log"
@@ -63,7 +71,7 @@ log.maxDays = 3
 log.disablePrintColor = false
 
 auth.method = "token"
-auth.token = "token123"
+auth.token = "${FRP_TOKEN}"
 
 allowPorts = [
   { start = 10001, end = 50000 }
@@ -97,15 +105,48 @@ after sshd
 EOL
 chmod +x /etc/init.d/frps
 rc-update add frps default
-echo "frps service created and added to default runlevel. You can start it with 'rc-service frps start'."
+echo "frps service created and added to default runlevel."
+}
+
+inputVars() {
+    read -p "Enter the port for frps to listen on (default: ${FRP_PORT}): " inputPort
+    if [ -n "$inputPort" ]; then
+        FRP_PORT=$inputPort
+    fi
+
+    read -p "Enter the port for frps web dashboard (default: ${FRP_WEB_PORT}): " inputWebPort
+    if [ -n "$inputWebPort" ]; then
+        FRP_WEB_PORT=$inputWebPort
+    fi
+
+    read -p "Enter the token for frps authentication (default: ${FRP_TOKEN}): " inputToken
+    if [ -n "$inputToken" ]; then
+        FRP_TOKEN=$inputToken
+    fi
+
+    read -p "Enter the username for frps web dashboard (default: ${FRP_WebUser}): " inputWebUser
+    if [ -n "$inputWebUser" ]; then
+        FRP_WebUser=$inputWebUser
+    fi
+
+    read -p "Enter the password for frps web dashboard (default: ${FRP_WebPassword}): " inputWebPassword
+    if [ -n "$inputWebPassword" ]; then
+        FRP_WebPassword=$inputWebPassword
+    fi
+
+    read -p "Enter the subdomain host for frps (default: none, format: 'subdomain.example.com'): " inputSubDomainHost
+    if [ -n "$inputSubDomainHost" ]; then
+        FRP_SubDomainHost="subDomainHost = '${inputSubDomainHost}'"
+    fi
 }
 
 install() {
     createDir
     downloadFrps
+    inputVars
     createFrpsConfig
     createRcService
-    echo "frps setup completed successfully."
+    echo "frps setup completed successfully. You can start it with 'rc-service frps start'."
 }
 
 uninstall() {
@@ -117,7 +158,7 @@ uninstall() {
     echo "frps uninstalled successfully."
 }
 
-echo "chose install frps for Alpine Linux or uninstall."
+echo "choose install frps for Alpine Linux or uninstall."
 echo "1) Install frps"
 echo "2) Uninstall frps"
 read -p "Enter your choice (1/2): " choice
