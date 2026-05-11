@@ -11,6 +11,7 @@ FRP_TOKEN=token123
 FRP_WebUser=admin
 FRP_WebPassword=admin123
 FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
+SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -84,6 +85,29 @@ EOL
 echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
 
+createSystemdService() {
+    if [ -e /etc/systemd/system/frps.service ]; then
+        rm /etc/systemd/system/frps.service 
+    fi
+    #create systemd service file    
+cat > /etc/systemd/system/frps.service <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOL
+    systemctl enable frps.service
+    systemctl daemon-reload
+    echo "frps service created."
+}
+
 createRcService() {
     if [ -e /etc/init.d/frps ]; then
         echo "frps service already exists. Skipping creation."
@@ -140,24 +164,50 @@ inputVars() {
     fi
 }
 
+checkSystemctl() {
+    if command -v systemctl &> /dev/null; then
+        SHELL_TYPE=2
+    else if command -v rc-service &> /dev/null; then
+        SHELL_TYPE=1
+    else
+        echo "Neither systemctl nor rc-service command found. " 
+        exit 1
+    fi
+}
+
 install() {
+    checkSystemctl
     createDir
     downloadFrps
     inputVars
     createFrpsConfig
-    createRcService
-    echo "frps setup completed successfully. You can start it with 'rc-service frps start'."
+    if [ $SHELL_TYPE -eq 2 ]; then
+        createSystemdService
+        echo "frps setup completed successfully. You can start it with 'systemctl start frps'."
+    else if [ $SHELL_TYPE -eq 1 ]; then
+        createRcService
+        echo "frps setup completed successfully. You can start it with 'rc-service frps start'."
+    fi
 }
 
 uninstall() {
-    rc-service frps stop
-    echo "Uninstalling frps..."
-    rc-update del frps default
-    rm -f /etc/init.d/frps
-    rm -rf $FRP_PATH
+    if [ $SHELL_TYPE -eq 2 ]; then
+        systemctl stop frps.service
+        echo "Uninstalling frps..."
+        systemctl disable frps.service
+        rm -f /etc/systemd/system/frps.service
+        rm -rf $FRP_PATH
+    else if [ $SHELL_TYPE -eq 1 ]; then
+        rc-service frps stop
+        echo "Uninstalling frps..."
+        rc-update del frps default
+        rm -f /etc/init.d/frps
+        rm -rf $FRP_PATH
+    fi
     echo "frps uninstalled successfully."
 }
 
+# Main menu
 echo "choose install frps for Alpine Linux or uninstall."
 echo "1) Install frps"
 echo "2) Uninstall frps"
