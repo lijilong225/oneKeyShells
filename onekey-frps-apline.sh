@@ -32,7 +32,7 @@ createDir() {
 }
 
 downloadFrps() {
-    echo "Installing frps for Alpine Linux..."
+    echo "Installing frps ..."
     # Download and install frps
     wget -qO frps.tar.gz https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz
     if [ -e frps.tar.gz ]; then
@@ -74,7 +74,7 @@ webServer.user = "${FRP_Admin_User}"
 webServer.password = "${FRP_Admin_Password}"
 webServer.pprofEnable = false
 
-log.to = "./frps.log"
+log.to = "${FRP_PATH}/frps.log"
 log.level = "info"
 log.maxDays = 3
 log.disablePrintColor = false
