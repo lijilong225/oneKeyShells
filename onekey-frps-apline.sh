@@ -3,15 +3,15 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
-FRP_PORT=7000
-FRP_WEB_PORT=7500
-FRP_HTTP_PORT=80
-FRP_HTTPS_PORT=443
-FRP_TOKEN=token123
-FRP_WebUser=admin
-FRP_WebPassword=admin123
+declare -i FRP_PORT=7000
+declare -i FRP_WEB_PORT=7500
+declare -i FRP_HTTP_PORT=80
+declare -i FRP_HTTPS_PORT=443
+FRP_TOKEN="token123"
+FRP_WebUser="admin"
+FRP_WebPassword="admin123"
 FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
-SHELL_TYPE=1 #1 for apline, 2 for systemd
+declare -i SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -62,8 +62,8 @@ transport.tls.force = false
 
 webServer.addr = "0.0.0.0"
 webServer.port = ${FRP_WEB_PORT}
-webServer.user = "${FRP_WebUser}"
-webServer.password = "${FRP_WebPassword}"
+webServer.user = ${FRP_WebUser}
+webServer.password = ${FRP_WebPassword}
 webServer.pprofEnable = false
 
 log.to = "${FRP_PATH}/frps.log"
@@ -72,7 +72,7 @@ log.maxDays = 3
 log.disablePrintColor = false
 
 auth.method = "token"
-auth.token = "${FRP_TOKEN}"
+auth.token = ${FRP_TOKEN}
 
 allowPorts = [
   { start = 10001, end = 50000 }
@@ -86,26 +86,26 @@ EOL
 }
 
 createSystemdService() {
-#     if [ -e /etc/systemd/system/frps.service ]; then
-#         rm /etc/systemd/system/frps.service 
-#     fi
-#     #create systemd service file    
-# cat > /etc/systemd/system/frps.service <<EOL
-# [Unit]
-# Description=FRP Server
-# After=network.target
+    if [ -e /etc/systemd/system/frps.service ]; then
+        rm /etc/systemd/system/frps.service 
+    fi
+    #create systemd service file    
+cat > /etc/systemd/system/frps.service <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
 
-# [Service]
-# Type=simple
-# ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
-# Restart=always
+[Service]
+Type=simple
+ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
+Restart=always
 
-# [Install]
-# WantedBy=multi-user.target
-# EOL
-#     systemctl enable frps.service
-#     systemctl daemon-reload
-#     echo "frps service created."
+[Install]
+WantedBy=multi-user.target
+EOL
+    systemctl enable frps.service
+    systemctl daemon-reload
+    echo "frps service created."
 }
 
 createRcService() {
@@ -165,16 +165,16 @@ inputVars() {
 }
 
 checkSystemctl() {
-    # echo "Checking init system..."
-    # if command -v systemctl &> /dev/null; then
-    #     SHELL_TYPE=2
-    # else if command -v rc-service &> /dev/null; then
-    #     SHELL_TYPE=1
-    # else
-    #     echo "Neither systemctl nor rc-service command found. "
-    #     exit 1
-    # fi
-    # echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
+    echo "Checking init system..."
+    if command -v systemctl &> /dev/null; then
+        SHELL_TYPE=2
+    else if command -v rc-service &> /dev/null; then
+        SHELL_TYPE=1
+    else
+        echo "Neither systemctl nor rc-service command found. "
+        exit 1
+    fi
+    echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
 }
 
 install() {
