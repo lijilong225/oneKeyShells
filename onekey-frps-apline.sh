@@ -82,7 +82,7 @@ maxPortsPerClient = 8
 udpPacketSize = 1500
 natholeAnalysisDataReserveHours = 168
 EOL
-echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
+    echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
 
 createSystemdService() {
@@ -127,9 +127,9 @@ depend() {
 after sshd
 }
 EOL
-chmod +x /etc/init.d/frps
-rc-update add frps default
-echo "frps service created and added to default runlevel."
+    chmod +x /etc/init.d/frps
+    rc-update add frps default
+    echo "frps service created and added to default runlevel."
 }
 
 inputVars() {
@@ -164,18 +164,18 @@ inputVars() {
     fi
 }
 
-# checkSystemctl() {
-#     echo "Checking init system..."
-#     if command -v systemctl &> /dev/null; then
-#         SHELL_TYPE=2
-#     else if command -v rc-service &> /dev/null; then
-#         SHELL_TYPE=1
-#     else
-#         echo "Neither systemctl nor rc-service command found. "
-#         exit 1
-#     fi
-#     echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
-# }
+checkSystemctl() {
+    echo "Checking init system..."
+    if command -v systemctl &> /dev/null; then
+        SHELL_TYPE=2
+    else if command -v rc-service &> /dev/null; then
+        SHELL_TYPE=1
+    else
+        echo "Neither systemctl nor rc-service command found. "
+        exit 1
+    fi
+    echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
+}
 
 install() {
     # checkSystemctl
