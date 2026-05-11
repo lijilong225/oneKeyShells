@@ -56,8 +56,8 @@ transport.tls.force = false
 
 webServer.addr = "0.0.0.0"
 webServer.port = 7500
-webServer.user = "admin"
-webServer.password = "admin123"
+webServer.user = "${FRP_Admin_User}"
+webServer.password = "${FRP_Admin_Password}"
 webServer.pprofEnable = false
 
 log.to = "./frps.log"
@@ -66,7 +66,7 @@ log.maxDays = 3
 log.disablePrintColor = false
 
 auth.method = "token"
-auth.token = "token123"
+auth.token = "${FRP_Token}"
 
 allowPorts = [
   { start = 10001, end = 50000 }
@@ -101,6 +101,7 @@ EOL
     chmod +x /etc/init.d/frps
     rc-update add frps default
     echo "frps service created and added to default runlevel."
+    echo "to start frps service, run: rc-service frps start."
 }
 
 initFrpsVars() {
