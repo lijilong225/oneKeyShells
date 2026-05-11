@@ -3,15 +3,15 @@
 # variable
 FRP_VERSION=0.68.1
 FRP_PATH=/usr/local/frp
-declare -i FRP_PORT=7000
-declare -i FRP_WEB_PORT=7500
-declare -i FRP_HTTP_PORT=80
-declare -i FRP_HTTPS_PORT=443
-FRP_TOKEN="token123"
-FRP_WebUser="admin"
-FRP_WebPassword="admin123"
-FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
-declare -i SHELL_TYPE=1 #1 for apline, 2 for systemd
+# declare -i FRP_PORT=7000
+# declare -i FRP_WEB_PORT=7500
+# declare -i FRP_HTTP_PORT=80
+# declare -i FRP_HTTPS_PORT=443
+# FRP_TOKEN="token123"
+# FRP_WebUser="admin"
+# FRP_WebPassword="admin123"
+# FRP_SubDomainHost="#subDomainHost = 'xxx.com'"
+SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -132,37 +132,37 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
-inputVars() {
-    read -p "Enter the port for frps to listen on (default: ${FRP_PORT}): " inputPort
-    if [ -n "$inputPort" ]; then
-        FRP_PORT=$inputPort
-    fi
+# inputVars() {
+#     read -p "Enter the port for frps to listen on (default: ${FRP_PORT}): " inputPort
+#     if [ -n "$inputPort" ]; then
+#         FRP_PORT=$inputPort
+#     fi
 
-    read -p "Enter the port for frps web dashboard (default: ${FRP_WEB_PORT}): " inputWebPort
-    if [ -n "$inputWebPort" ]; then
-        FRP_WEB_PORT=$inputWebPort
-    fi
+#     read -p "Enter the port for frps web dashboard (default: ${FRP_WEB_PORT}): " inputWebPort
+#     if [ -n "$inputWebPort" ]; then
+#         FRP_WEB_PORT=$inputWebPort
+#     fi
 
-    read -p "Enter the token for frps authentication (default: ${FRP_TOKEN}): " inputToken
-    if [ -n "$inputToken" ]; then
-        FRP_TOKEN=$inputToken
-    fi
+#     read -p "Enter the token for frps authentication (default: ${FRP_TOKEN}): " inputToken
+#     if [ -n "$inputToken" ]; then
+#         FRP_TOKEN=$inputToken
+#     fi
 
-    read -p "Enter the username for frps web dashboard (default: ${FRP_WebUser}): " inputWebUser
-    if [ -n "$inputWebUser" ]; then
-        FRP_WebUser=$inputWebUser
-    fi
+#     read -p "Enter the username for frps web dashboard (default: ${FRP_WebUser}): " inputWebUser
+#     if [ -n "$inputWebUser" ]; then
+#         FRP_WebUser=$inputWebUser
+#     fi
 
-    read -p "Enter the password for frps web dashboard (default: ${FRP_WebPassword}): " inputWebPassword
-    if [ -n "$inputWebPassword" ]; then
-        FRP_WebPassword=$inputWebPassword
-    fi
+#     read -p "Enter the password for frps web dashboard (default: ${FRP_WebPassword}): " inputWebPassword
+#     if [ -n "$inputWebPassword" ]; then
+#         FRP_WebPassword=$inputWebPassword
+#     fi
 
-    read -p "Enter the subdomain host for frps (default: none, format: 'subdomain.example.com'): " inputSubDomainHost
-    if [ -n "$inputSubDomainHost" ]; then
-        FRP_SubDomainHost="subDomainHost = '${inputSubDomainHost}'"
-    fi
-}
+#     read -p "Enter the subdomain host for frps (default: none, format: 'subdomain.example.com'): " inputSubDomainHost
+#     if [ -n "$inputSubDomainHost" ]; then
+#         FRP_SubDomainHost="subDomainHost = '${inputSubDomainHost}'"
+#     fi
+# }
 
 checkSystemctl() {
     echo "Checking init system..."
@@ -181,7 +181,7 @@ install() {
     checkSystemctl
     createDir
     downloadFrps
-    inputVars
+    # inputVars
     createFrpsConfig
     if [ $SHELL_TYPE -eq 2 ]; then
         createSystemdService
