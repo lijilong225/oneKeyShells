@@ -124,38 +124,6 @@ EOL
     echo "frps service created and added to default runlevel."
 }
 
-# inputVars() {
-#     read -p "Enter the port for frps to listen on (default: ${FRP_PORT}): " inputPort
-#     if [ -n "$inputPort" ]; then
-#         FRP_PORT=$inputPort
-#     fi
-
-#     read -p "Enter the port for frps web dashboard (default: ${FRP_WEB_PORT}): " inputWebPort
-#     if [ -n "$inputWebPort" ]; then
-#         FRP_WEB_PORT=$inputWebPort
-#     fi
-
-#     read -p "Enter the token for frps authentication (default: ${FRP_TOKEN}): " inputToken
-#     if [ -n "$inputToken" ]; then
-#         FRP_TOKEN=$inputToken
-#     fi
-
-#     read -p "Enter the username for frps web dashboard (default: ${FRP_WebUser}): " inputWebUser
-#     if [ -n "$inputWebUser" ]; then
-#         FRP_WebUser=$inputWebUser
-#     fi
-
-#     read -p "Enter the password for frps web dashboard (default: ${FRP_WebPassword}): " inputWebPassword
-#     if [ -n "$inputWebPassword" ]; then
-#         FRP_WebPassword=$inputWebPassword
-#     fi
-
-#     read -p "Enter the subdomain host for frps (default: none, format: 'subdomain.example.com'): " inputSubDomainHost
-#     if [ -n "$inputSubDomainHost" ]; then
-#         FRP_SubDomainHost="subDomainHost = '${inputSubDomainHost}'"
-#     fi
-# }
-
 checkSystemctl() {
     echo "Checking init system..."
     if command -v systemctl &> /dev/null; then
