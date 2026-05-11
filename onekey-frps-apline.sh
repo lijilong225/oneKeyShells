@@ -6,6 +6,39 @@ FRP_PATH=/usr/local/frp
 FRP_Admin_User=admin
 FRP_Admin_Password=admin123
 FRP_Token=token123
+# 1: openRc, 2: systemd
+SHELL_TYPE=1
+
+checkShellType() {
+    if [ -d "/run/openrc" ]; then
+        SHELL_TYPE=1
+    elif [ -d "/run/systemd" ]; then
+        SHELL_TYPE=2
+    else
+        echo "Unable to detect init system. Please select manually."
+        # selectShell
+    fi
+    echo "Detected init system: $([ $SHELL_TYPE -eq 1 ] && echo "OpenRC" || echo "Systemd")"
+}
+
+selectShell() {
+    echo "Select init system:"
+    echo "1) OpenRC"
+    echo "2) Systemd"
+    read -p "Enter your choice (1/2): " shell_choice
+    case $shell_choice in
+        1)
+            SHELL_TYPE=1
+            ;;
+        2)
+            SHELL_TYPE=2
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to OpenRC."
+            SHELL_TYPE=1
+            ;;
+    esac
+}
 
 createDir() {
     if [ -e "$FRP_PATH" ]; then
@@ -136,7 +169,8 @@ uninstall() {
 }
 
 # Main menu
-echo "choose install frps for Alpine Linux or uninstall."
+checkShellType
+echo "choose install frps or uninstall."
 echo "1) Install frps"
 echo "2) Uninstall frps"
 read -p "Enter your choice (1/2): " choice
