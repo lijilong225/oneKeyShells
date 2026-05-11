@@ -165,12 +165,13 @@ inputVars() {
 }
 
 checkSystemctl() {
+    echo "Checking init system..."
     if command -v systemctl &> /dev/null; then
         SHELL_TYPE=2
     else if command -v rc-service &> /dev/null; then
         SHELL_TYPE=1
     else
-        echo "Neither systemctl nor rc-service command found. " 
+        echo "Neither systemctl nor rc-service command found. "
         exit 1
     fi
     echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
