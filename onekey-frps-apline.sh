@@ -7,10 +7,10 @@ SHELL_TYPE=1 #1 for apline, 2 for systemd
 
 checkSystemctl() {
     echo "Checking init system..."
-    if command -v systemctl &> /dev/null; then
+    if [ command -v systemctl &> /dev/null ]; then
         SHELL_TYPE=2
         echo "Systemctl command found. Using systemd for service management."
-    else if command -v rc-service &> /dev/null; then
+    else if [ command -v rc-service &> /dev/null ]; then
         SHELL_TYPE=1
         echo "rc-service command found. Using OpenRC for service management."
     else
