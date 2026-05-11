@@ -86,26 +86,26 @@ EOL
 }
 
 createSystemdService() {
-    if [ -e /etc/systemd/system/frps.service ]; then
-        rm /etc/systemd/system/frps.service 
-    fi
-    #create systemd service file    
-cat > /etc/systemd/system/frps.service <<EOL
-[Unit]
-Description=FRP Server
-After=network.target
+#     if [ -e /etc/systemd/system/frps.service ]; then
+#         rm /etc/systemd/system/frps.service 
+#     fi
+#     #create systemd service file    
+# cat > /etc/systemd/system/frps.service <<EOL
+# [Unit]
+# Description=FRP Server
+# After=network.target
 
-[Service]
-Type=simple
-ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
-Restart=always
+# [Service]
+# Type=simple
+# ExecStart=${FRP_PATH}/frps -c ${FRP_PATH}/frps.toml
+# Restart=always
 
-[Install]
-WantedBy=multi-user.target
-EOL
-    systemctl enable frps.service
-    systemctl daemon-reload
-    echo "frps service created."
+# [Install]
+# WantedBy=multi-user.target
+# EOL
+#     systemctl enable frps.service
+#     systemctl daemon-reload
+#     echo "frps service created."
 }
 
 createRcService() {
@@ -165,20 +165,19 @@ inputVars() {
 }
 
 checkSystemctl() {
-    echo "Checking init system..."
-    if command -v systemctl &> /dev/null; then
-        SHELL_TYPE=2
-    else if command -v rc-service &> /dev/null; then
-        SHELL_TYPE=1
-    else
-        echo "Neither systemctl nor rc-service command found. "
-        exit 1
-    fi
-    echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
+    # echo "Checking init system..."
+    # if command -v systemctl &> /dev/null; then
+    #     SHELL_TYPE=2
+    # else if command -v rc-service &> /dev/null; then
+    #     SHELL_TYPE=1
+    # else
+    #     echo "Neither systemctl nor rc-service command found. "
+    #     exit 1
+    # fi
+    # echo "Detected init system: $([ $SHELL_TYPE -eq 2 ] && echo 'systemd' || echo 'OpenRC')"
 }
 
 install() {
-    echo "Starting frps installation..."
     checkSystemctl
     createDir
     downloadFrps
