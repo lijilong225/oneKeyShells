@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
 
 # variable
-FRP_VERSION=0.68.1
+FRP_VERSION=0.70.0
 FRP_PATH=/usr/local/frp
-FRP_Admin_User=admin
-FRP_Admin_Password=admin123
 FRP_Token=token123
 # 1: openRc, 2: systemd
 SHELL_TYPE=1
+
+fetchLatestFrpVersion() {
+    # Fetch the latest frp version from GitHub API
+    local latest_version=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+    if [ -n "$latest_version" ]; then
+        FRP_VERSION=${latest_version#v}
+        echo "Latest frp version detected: $FRP_VERSION"
+    else
+        echo "Failed to fetch the latest frp version. Using default version: $FRP_VERSION"
+    fi
+}
 
 checkShellType() {
     if [ -d "/run/openrc" ]; then
@@ -58,37 +67,11 @@ bindPort = 7000
 #kcpBindPort = 7000
 quicBindPort = 7000
 
-vhostHTTPPort = 80
+#vhostHTTPPort = 80
 vhostHTTPSPort = 443
-#subDomainHost = 'xxx.com'
-
-transport.maxPoolCount = 2000
-transport.tcpMux = true
-transport.tcpMuxKeepaliveInterval = 60
-transport.tcpKeepalive = 7200
-transport.tls.force = false
-
-webServer.addr = "0.0.0.0"
-webServer.port = 7500
-webServer.user = "${FRP_Admin_User}"
-webServer.password = "${FRP_Admin_Password}"
-webServer.pprofEnable = false
-
-log.to = "${FRP_PATH}/frps.log"
-log.level = "info"
-log.maxDays = 3
-log.disablePrintColor = false
 
 auth.method = "token"
 auth.token = "${FRP_Token}"
-
-allowPorts = [
-  { start = 10001, end = 50000 }
-]
-
-maxPortsPerClient = 8
-udpPacketSize = 1500
-natholeAnalysisDataReserveHours = 168
 EOL
     echo "frps installation completed. Configuration file created at ${FRP_PATH}/frps.toml"
 }
@@ -146,16 +129,8 @@ EOL
 }
 
 initFrpsVars() {
-    read -p "Enter frps admin username (default: ${FRP_Admin_User}): " input_user
-    read -p "Enter frps admin password (default: ${FRP_Admin_Password}): " input_password
     read -p "Enter frps auth token (default: ${FRP_Token}): " input_token
-
-    FRP_Admin_User=${input_user:-$FRP_Admin_User}
-    FRP_Admin_Password=${input_password:-$FRP_Admin_Password}
     FRP_Token=${input_token:-$FRP_Token}
-
-    echo "Admin Username: $FRP_Admin_User"
-    echo "Admin Password: $FRP_Admin_Password"
     echo "Auth Token: $FRP_Token"
 }
 
@@ -187,6 +162,7 @@ uninstall() {
 }
 
 # Main menu
+fetchLatestFrpVersion
 checkShellType
 echo "choose install frps or uninstall."
 echo "1) Install frps"
