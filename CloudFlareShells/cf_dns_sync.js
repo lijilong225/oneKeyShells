@@ -1,8 +1,9 @@
 // Cloudflare IPv6 DNS Updater Worker
 // 设置全局变量CF_ZONE_NAME，CF_API_TOKEN
 const BESTV6_URL = 'https://www.wetest.vip/page/cloudflare/address_v6.html';
+const BESTV4_URL = 'https://www.wetest.vip/page/cloudflare/address_v4.html';
 const ZONE_NAME = CF_ZONE_NAME;
-const MAPPING = { 移动: 'yidong', 联通: 'liantong', 电信: 'dianxin' };
+const MAPPING = { 移动: '139', 联通: '155', 电信: '189' };
 const CARRIERS = ['移动', '联通', '电信'];
 
 addEventListener('fetch', event => {
@@ -16,29 +17,30 @@ async function handleRequest(request) {
       return new Response('CF_API_TOKEN is not configured', { status: 500 });
     }
 
-    const html = await fetchText(BESTV6_URL);
-    const best = parsePreferredAddresses(html);
+    const v6Html = await fetchText(BESTV6_URL);
+    const v6Best = parsePreferredAddresses(v6Html);
+    const v4Html = await fetchText(BESTV4_URL);
+    const v4Best = parsePreferredAddresses(v4Html);
     const zoneId = await getZoneId(apiToken);
     const results = [];
 
     for (const carrier of CARRIERS) {
-      const { addr } = best[carrier] || {};
-      if (!addr) {
-        results.push(`${carrier}: no address found, skipped`);
-        continue;
-      }
       const recordName = `${MAPPING[carrier]}.${ZONE_NAME}`;
-      const existing = await getDnsRecord(apiToken, zoneId, recordName);
-      if (existing) {
-        if (existing.content === addr) {
-          results.push(`${carrier}: ${recordName} already set to ${addr}`);
-        } else {
-          await updateDnsRecord(apiToken, zoneId, existing.id, recordName, addr);
-          results.push(`${carrier}: ${recordName} updated to ${addr}`);
-        }
+      const v6Addr = v6Best[carrier]?.addr;
+      const v4Addr = v4Best[carrier]?.addr;
+
+      if (v6Addr) {
+        const v6Result = await syncDnsRecord(apiToken, zoneId, recordName, v6Addr, 'AAAA', `${carrier} IPv6`);
+        results.push(v6Result);
       } else {
-        await createDnsRecord(apiToken, zoneId, recordName, addr);
-        results.push(`${carrier}: ${recordName} created with ${addr}`);
+        results.push(`${carrier}: no IPv6 address found, skipped`);
+      }
+
+      if (v4Addr) {
+        const v4Result = await syncDnsRecord(apiToken, zoneId, recordName, v4Addr, 'A', `${carrier} IPv4`);
+        results.push(v4Result);
+      } else {
+        results.push(`${carrier}: no IPv4 address found, skipped`);
       }
     }
 
@@ -110,14 +112,28 @@ async function getZoneId(apiToken) {
   return data.result[0].id;
 }
 
-async function getDnsRecord(apiToken, zoneId, name) {
-  const data = await cfApi(apiToken, `/zones/${zoneId}/dns_records`, 'GET', null, { type: 'AAAA', name });
+async function syncDnsRecord(apiToken, zoneId, name, content, type, label) {
+  const existing = await getDnsRecord(apiToken, zoneId, name, type);
+  if (existing) {
+    if (existing.content === content) {
+      return `${label}: ${name} already set to ${content}`;
+    }
+    await updateDnsRecord(apiToken, zoneId, existing.id, name, content, type);
+    return `${label}: ${name} updated to ${content}`;
+  }
+
+  await createDnsRecord(apiToken, zoneId, name, content, type);
+  return `${label}: ${name} created with ${content}`;
+}
+
+async function getDnsRecord(apiToken, zoneId, name, type = 'AAAA') {
+  const data = await cfApi(apiToken, `/zones/${zoneId}/dns_records`, 'GET', null, { type, name });
   return Array.isArray(data.result) && data.result.length > 0 ? data.result[0] : null;
 }
 
-async function updateDnsRecord(apiToken, zoneId, recordId, name, content) {
+async function updateDnsRecord(apiToken, zoneId, recordId, name, content, type = 'AAAA') {
   await cfApi(apiToken, `/zones/${zoneId}/dns_records/${recordId}`, 'PUT', {
-    type: 'AAAA',
+    type,
     name,
     content,
     ttl: 1,
@@ -125,9 +141,9 @@ async function updateDnsRecord(apiToken, zoneId, recordId, name, content) {
   });
 }
 
-async function createDnsRecord(apiToken, zoneId, name, content) {
+async function createDnsRecord(apiToken, zoneId, name, content, type = 'AAAA') {
   await cfApi(apiToken, `/zones/${zoneId}/dns_records`, 'POST', {
-    type: 'AAAA',
+    type,
     name,
     content,
     ttl: 1,
