@@ -13,14 +13,28 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-echo -e "${GREEN}=== Hysteria 2 一键安装程序 (Debian 12/13) ===${PLAIN}"
+# 1. 识别操作系统与初始化管理器
+OS_TYPE="unknown"
+if [ -f /etc/alpine-release ]; then
+    OS_TYPE="alpine"
+elif [ -f /etc/debian_version ]; then
+    OS_TYPE="debian"
+fi
 
-# 1. 基础依赖检查与安装
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y curl wget openssl jq systemd iptables iptables-persistent netfilter-persistent
+echo -e "${GREEN}=== Hysteria 2 一键安装程序 (兼容 Debian / Alpine) ===${PLAIN}"
+echo -e "检测到系统环境: ${YELLOW}${OS_TYPE}${PLAIN}"
 
-# 2. 获取系统架构并下载 Hysteria 2 最新二进制
+# 2. 依赖检查与安装
+if [ "$OS_TYPE" = "alpine" ]; then
+    apk update
+    apk add --no-cache bash curl wget openssl jq iptables ip6tables openrc ca-certificates
+elif [ "$OS_TYPE" = "debian" ]; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y curl wget openssl jq systemd iptables iptables-persistent netfilter-persistent ca-certificates
+fi
+
+# 3. 获取 CPU 架构并下载最新 Hysteria 2 二进制
 ARCH=$(uname -m)
 case "$ARCH" in
   x86_64|amd64) HY2_ARCH="amd64" ;;
@@ -40,10 +54,10 @@ echo -e "${YELLOW}下载并安装 Hysteria (${LATEST_TAG})...${PLAIN}"
 curl -Lo /usr/local/bin/hysteria "$DOWNLOAD_URL"
 chmod +x /usr/local/bin/hysteria
 
-# 3. 创建必要目录
-mkdir -p /etc/hysteria /etc/hysteria/certs
+# 4. 创建必要目录
+mkdir -p /etc/hysteria /etc/hysteria/certs /var/log/hysteria
 
-# 4. 收集用户配置信息
+# 5. 收集用户配置信息
 echo -e "\n${GREEN}--- 配置自定义参数 ---${PLAIN}"
 read -rp "请输入监听端口 (默认: 443): " PORT
 PORT=${PORT:-443}
@@ -73,7 +87,7 @@ UP_MBPS=${UP_MBPS:-100}
 read -rp "请输入下行带宽 (Mbps, 默认: 500): " DOWN_MBPS
 DOWN_MBPS=${DOWN_MBPS:-500}
 
-# 5. 生成自签名证书
+# 6. 生成自签名证书
 echo -e "${YELLOW}正在生成自签名 TLS 证书...${PLAIN}"
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout /etc/hysteria/certs/server.key \
@@ -82,7 +96,7 @@ openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
 chmod 644 /etc/hysteria/certs/server.crt
 chmod 600 /etc/hysteria/certs/server.key
 
-# 6. 生成配置文件与环境变量
+# 7. 生成配置文件与环境变量
 cat << CONFIG_EOF > /etc/hysteria/config.yaml
 listen: :${PORT}
 
@@ -109,13 +123,26 @@ sniff:
 CONFIG_EOF
 
 cat << ENV_EOF > /etc/hysteria/hop.env
+OS_TYPE="${OS_TYPE}"
 HOP_RANGE="${HOP_RANGE}"
 CLIENT_HOP_RANGE="${CLIENT_HOP_RANGE}"
 UP_MBPS="${UP_MBPS}"
 DOWN_MBPS="${DOWN_MBPS}"
 ENV_EOF
 
-# 7. 配置 iptables 端口跳跃
+# 8. 配置 iptables 规则持久化辅助函数
+save_firewall_rules() {
+    if [ "$OS_TYPE" = "alpine" ]; then
+        /etc/init.d/iptables save >/dev/null 2>&1 || true
+        /etc/init.d/ip6tables save >/dev/null 2>&1 || true
+        rc-update add iptables default >/dev/null 2>&1 || true
+        rc-update add ip6tables default >/dev/null 2>&1 || true
+    elif [ "$OS_TYPE" = "debian" ]; then
+        netfilter-persistent save >/dev/null 2>&1 || true
+    fi
+}
+
+# 应用端口跳跃
 if [[ -n "$HOP_RANGE" ]]; then
     echo -e "${YELLOW}正在配置 iptables 端口转发规则...${PLAIN}"
     iptables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
@@ -123,11 +150,31 @@ if [[ -n "$HOP_RANGE" ]]; then
 
     iptables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT"
     ip6tables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
-    netfilter-persistent save >/dev/null 2>&1 || true
+    save_firewall_rules
 fi
 
-# 8. 注册 Systemd 服务
-cat << SERVICE_EOF > /etc/systemd/system/hysteria-server.service
+# 9. 注册系统服务 (Systemd / OpenRC)
+if [ "$OS_TYPE" = "alpine" ]; then
+    cat << 'RC_EOF' > /etc/init.d/hysteria-server
+#!/sbin/openrc-run
+description="Hysteria 2 Server"
+command="/usr/local/bin/hysteria"
+command_args="server -c /etc/hysteria/config.yaml"
+command_background=true
+pidfile="/run/hysteria-server.pid"
+output_log="/var/log/hysteria/output.log"
+error_log="/var/log/hysteria/error.log"
+
+depend() {
+    need net
+    after firewall
+}
+RC_EOF
+    chmod +x /etc/init.d/hysteria-server
+    rc-update add hysteria-server default
+    rc-service hysteria-server restart
+else
+    cat << SERVICE_EOF > /etc/systemd/system/hysteria-server.service
 [Unit]
 Description=Hysteria 2 Server Service
 After=network.target
@@ -143,12 +190,12 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
+    systemctl daemon-reload
+    systemctl enable hysteria-server
+    systemctl restart hysteria-server
+fi
 
-systemctl daemon-reload
-systemctl enable hysteria-server
-systemctl restart hysteria-server
-
-# 9. 生成 hyx 交互控制面板
+# 10. 生成 hyx 交互控制面板
 cat << 'HYX_EOF' > /usr/local/bin/hyx
 #!/bin/bash
 
@@ -163,6 +210,40 @@ ENV_FILE="/etc/hysteria/hop.env"
 SERVER_IP=$(curl -s4m 5 https://api.ipify.org || echo "YOUR_SERVER_IP")
 
 [[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
+
+is_service_running() {
+    if [ "$OS_TYPE" = "alpine" ]; then
+        rc-service hysteria-server status >/dev/null 2>&1
+    else
+        systemctl is-active --quiet hysteria-server
+    fi
+}
+
+is_service_enabled() {
+    if [ "$OS_TYPE" = "alpine" ]; then
+        rc-status default | grep -q "hysteria-server"
+    else
+        systemctl is-enabled --quiet hysteria-server 2>/dev/null
+    fi
+}
+
+service_action() {
+    local action="$1"
+    if [ "$OS_TYPE" = "alpine" ]; then
+        rc-service hysteria-server "$action"
+    else
+        systemctl "$action" hysteria-server
+    fi
+}
+
+save_firewall_rules() {
+    if [ "$OS_TYPE" = "alpine" ]; then
+        /etc/init.d/iptables save >/dev/null 2>&1 || true
+        /etc/init.d/ip6tables save >/dev/null 2>&1 || true
+    else
+        netfilter-persistent save >/dev/null 2>&1 || true
+    fi
+}
 
 print_node_links() {
     PORT=$(grep -E '^listen:' "$CONFIG_FILE" | awk '{print $2}' | tr -d ' :')
@@ -194,13 +275,13 @@ show_status() {
     echo -e "${GREEN}       Hysteria 2 管理控制面板          ${PLAIN}"
     echo -e "${BLUE}=========================================${PLAIN}"
     
-    if systemctl is-active --quiet hysteria-server; then
+    if is_service_running; then
         echo -e " 服务状态   : ${GREEN}运行中 (Running)${PLAIN}"
     else
         echo -e " 服务状态   : ${RED}已停止 (Stopped)${PLAIN}"
     fi
 
-    if systemctl is-enabled --quiet hysteria-server 2>/dev/null; then
+    if is_service_enabled; then
         echo -e " 开机自启   : ${GREEN}已启用${PLAIN}"
     else
         echo -e " 开机自启   : ${RED}已禁用${PLAIN}"
@@ -253,9 +334,10 @@ manage_hopping() {
             CLIENT_HOP_RANGE=$(echo "$HOP_RANGE" | tr ':' '-')
             iptables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT"
             ip6tables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
-            netfilter-persistent save >/dev/null 2>&1 || true
+            save_firewall_rules
 
             cat << ENV_SAVE > "$ENV_FILE"
+OS_TYPE="${OS_TYPE}"
 HOP_RANGE="${HOP_RANGE}"
 CLIENT_HOP_RANGE="${CLIENT_HOP_RANGE}"
 UP_MBPS="${UP_MBPS}"
@@ -268,10 +350,11 @@ ENV_SAVE
             if [[ -n "$HOP_RANGE" ]]; then
                 iptables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
                 ip6tables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
-                netfilter-persistent save >/dev/null 2>&1 || true
+                save_firewall_rules
                 HOP_RANGE=""
                 CLIENT_HOP_RANGE=""
                 cat << ENV_SAVE > "$ENV_FILE"
+OS_TYPE="${OS_TYPE}"
 HOP_RANGE=""
 CLIENT_HOP_RANGE=""
 UP_MBPS="${UP_MBPS}"
@@ -300,7 +383,7 @@ change_config() {
             ip6tables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$OLD_PORT" 2>/dev/null || true
             iptables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$NEW_PORT"
             ip6tables -t nat -A PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$NEW_PORT" 2>/dev/null || true
-            netfilter-persistent save >/dev/null 2>&1 || true
+            save_firewall_rules
         fi
     fi
 
@@ -308,9 +391,22 @@ change_config() {
         sed -i "s/password:.*/password: \"${NEW_PASS}\"/" "$CONFIG_FILE"
     fi
 
-    systemctl restart hysteria-server
+    service_action restart
     echo -e "${GREEN}配置更新完成并已重启服务！${PLAIN}"
     sleep 2
+}
+
+view_logs() {
+    if [ "$OS_TYPE" = "alpine" ]; then
+        if [ -f "/var/log/hysteria/error.log" ]; then
+            tail -n 50 -f /var/log/hysteria/error.log /var/log/hysteria/output.log
+        else
+            echo -e "${YELLOW}暂无日志记录${PLAIN}"
+            sleep 2
+        fi
+    else
+        journalctl -u hysteria-server -f
+    fi
 }
 
 uninstall_hy2() {
@@ -320,13 +416,21 @@ uninstall_hy2() {
         if [[ -n "$HOP_RANGE" && -n "$PORT" ]]; then
             iptables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
             ip6tables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
-            netfilter-persistent save >/dev/null 2>&1 || true
+            save_firewall_rules
         fi
-        systemctl stop hysteria-server
-        systemctl disable hysteria-server
-        rm -f /etc/systemd/system/hysteria-server.service
-        systemctl daemon-reload
-        rm -rf /etc/hysteria /usr/local/bin/hysteria /usr/local/bin/hyx
+        
+        if [ "$OS_TYPE" = "alpine" ]; then
+            rc-service hysteria-server stop 2>/dev/null || true
+            rc-update del hysteria-server default 2>/dev/null || true
+            rm -f /etc/init.d/hysteria-server
+        else
+            systemctl stop hysteria-server 2>/dev/null || true
+            systemctl disable hysteria-server 2>/dev/null || true
+            rm -f /etc/systemd/system/hysteria-server.service
+            systemctl daemon-reload
+        fi
+
+        rm -rf /etc/hysteria /usr/local/bin/hysteria /usr/local/bin/hyx /var/log/hysteria
         echo -e "${GREEN}卸载完成！${PLAIN}"
         exit 0
     fi
@@ -336,12 +440,12 @@ while true; do
     show_status
     read -rp "请选择操作 [0-7]: " choice
     case "$choice" in
-        1) systemctl start hysteria-server ;;
-        2) systemctl stop hysteria-server ;;
-        3) systemctl restart hysteria-server ;;
+        1) service_action start ;;
+        2) service_action stop ;;
+        3) service_action restart ;;
         4) change_config ;;
         5) manage_hopping ;;
-        6) journalctl -u hysteria-server -f ;;
+        6) view_logs ;;
         7) uninstall_hy2 ;;
         0) exit 0 ;;
         *) echo -e "${RED}输入无效，请重新选择${PLAIN}"; sleep 1 ;;
@@ -351,10 +455,9 @@ HYX_EOF
 
 chmod +x /usr/local/bin/hyx
 
-# 10. 安装完成立即打印客户端链接
+# 11. 安装完成
 echo -e "\n${GREEN}======================================================${PLAIN}"
 echo -e "${GREEN} Hysteria 2 安装完成！${PLAIN}"
-/usr/local/bin/hyx show_links 2>/dev/null || true
 echo -e " 随时在终端输入 ${YELLOW}hyx${PLAIN} 即可打开控制面板。"
 echo -e "${GREEN}======================================================${PLAIN}"
 EOF
