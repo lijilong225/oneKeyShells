@@ -273,7 +273,7 @@ print_node_links() {
         echo -e " ${GREEN}hysteria2://${PASS}@${SERVER_IP}:${PORT},${CLIENT_HOP_RANGE}/?sni=${SNI}&pinSHA256=${URL_PIN}&mport=${PORT},${CLIENT_HOP_RANGE}#Hy2_Hop_${SERVER_IP}${PLAIN}"
         
         echo -e "\n${YELLOW}[3] Mihomo JSON 格式配置 (列表项，含 pinSHA256，逗号后带空格):${PLAIN}"
-        echo " - {\"name\": \"Hy2_Hop_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"ports\": \"${PORT},${CLIENT_HOP_RANGE}\", \"hop-interval\": \"30s\", \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"pinSHA256\": \"${PIN_SHA256}\", \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
+        echo " - {\"name\": \"Hy2_Hop_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"ports\": \"${PORT},${CLIENT_HOP_RANGE}\", \"hop-interval\": \"30\", \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"pinSHA256\": \"${PIN_SHA256}\", \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
     else
         echo -e "\n${YELLOW}[2] Mihomo JSON 格式配置 (列表项，含 pinSHA256，逗号后带空格):${PLAIN}"
         echo " - {\"name\": \"Hy2_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"port\": ${PORT}, \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"pinSHA256\": \"${PIN_SHA256}\", \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
