@@ -13,7 +13,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# 1. 识别操作系统与初始化管理器
+# 1. 识别操作系统
 OS_TYPE="unknown"
 if [ -f /etc/alpine-release ]; then
     OS_TYPE="alpine"
@@ -21,7 +21,7 @@ elif [ -f /etc/debian_version ]; then
     OS_TYPE="debian"
 fi
 
-echo -e "${GREEN}=== Hysteria 2 一键安装程序 (兼容 Debian / Alpine) ===${PLAIN}"
+echo -e "${GREEN}=== Hysteria 2 一键安装 (支持 pinSHA256 / 兼容 Debian 与 Alpine) ===${PLAIN}"
 echo -e "检测到系统环境: ${YELLOW}${OS_TYPE}${PLAIN}"
 
 # 2. 依赖检查与安装
@@ -34,7 +34,7 @@ elif [ "$OS_TYPE" = "debian" ]; then
     apt-get install -y curl wget openssl jq systemd iptables iptables-persistent netfilter-persistent ca-certificates
 fi
 
-# 3. 获取 CPU 架构并下载最新 Hysteria 2 二进制
+# 3. 获取 CPU 架构并下载最新二进制
 ARCH=$(uname -m)
 case "$ARCH" in
   x86_64|amd64) HY2_ARCH="amd64" ;;
@@ -87,7 +87,7 @@ UP_MBPS=${UP_MBPS:-100}
 read -rp "请输入下行带宽 (Mbps, 默认: 500): " DOWN_MBPS
 DOWN_MBPS=${DOWN_MBPS:-500}
 
-# 6. 生成自签名证书
+# 6. 生成自签名证书并计算 SPKI pinSHA256
 echo -e "${YELLOW}正在生成自签名 TLS 证书...${PLAIN}"
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout /etc/hysteria/certs/server.key \
@@ -95,6 +95,9 @@ openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -subj "/CN=${SNI_DOMAIN}" -days 3650 >/dev/null 2>&1
 chmod 644 /etc/hysteria/certs/server.crt
 chmod 600 /etc/hysteria/certs/server.key
+
+# 计算 Hysteria 官方和 Mihomo 统一识别的标准 SPKI SHA-256 (Base64 编码)
+PIN_SHA256=$(openssl x509 -in /etc/hysteria/certs/server.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64)
 
 # 7. 生成配置文件与环境变量
 cat << CONFIG_EOF > /etc/hysteria/config.yaml
@@ -128,9 +131,10 @@ HOP_RANGE="${HOP_RANGE}"
 CLIENT_HOP_RANGE="${CLIENT_HOP_RANGE}"
 UP_MBPS="${UP_MBPS}"
 DOWN_MBPS="${DOWN_MBPS}"
+PIN_SHA256="${PIN_SHA256}"
 ENV_EOF
 
-# 8. 配置 iptables 规则持久化辅助函数
+# 8. 配置 iptables 规则持久化
 save_firewall_rules() {
     if [ "$OS_TYPE" = "alpine" ]; then
         /etc/init.d/iptables save >/dev/null 2>&1 || true
@@ -142,7 +146,6 @@ save_firewall_rules() {
     fi
 }
 
-# 应用端口跳跃
 if [[ -n "$HOP_RANGE" ]]; then
     echo -e "${YELLOW}正在配置 iptables 端口转发规则...${PLAIN}"
     iptables -t nat -D PREROUTING -p udp --dport "$HOP_RANGE" -j REDIRECT --to-ports "$PORT" 2>/dev/null || true
@@ -153,7 +156,7 @@ if [[ -n "$HOP_RANGE" ]]; then
     save_firewall_rules
 fi
 
-# 9. 注册系统服务 (Systemd / OpenRC)
+# 9. 注册系统服务
 if [ "$OS_TYPE" = "alpine" ]; then
     cat << 'RC_EOF' > /etc/init.d/hysteria-server
 #!/sbin/openrc-run
@@ -195,7 +198,7 @@ SERVICE_EOF
     systemctl restart hysteria-server
 fi
 
-# 10. 生成 hyx 交互控制面板
+# 10. 生成 hyx 交互控制面板 (带 pinSHA256)
 cat << 'HYX_EOF' > /usr/local/bin/hyx
 #!/bin/bash
 
@@ -207,9 +210,15 @@ PLAIN='\033[0m'
 
 CONFIG_FILE="/etc/hysteria/config.yaml"
 ENV_FILE="/etc/hysteria/hop.env"
+CERT_FILE="/etc/hysteria/certs/server.crt"
 SERVER_IP=$(curl -s4m 5 https://api.ipify.org || echo "YOUR_SERVER_IP")
 
 [[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
+
+# 实时提取证书 pinSHA256 确保准确
+if [ -f "$CERT_FILE" ]; then
+    PIN_SHA256=$(openssl x509 -in "$CERT_FILE" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64)
+fi
 
 is_service_running() {
     if [ "$OS_TYPE" = "alpine" ]; then
@@ -251,20 +260,23 @@ print_node_links() {
     SNI=$(grep -E 'url:' "$CONFIG_FILE" | head -n 1 | awk '{print $2}' | sed -E 's|https?://([^/]+)/?|\1|')
     UP=${UP_MBPS:-100}
     DOWN=${DOWN_MBPS:-500}
+    
+    # URL 编码 pinSHA256 中的特殊字符 (+ 和 =)
+    URL_PIN=$(echo "$PIN_SHA256" | sed 's/+/%2B/g; s/=/%3D/g')
 
     echo -e "\n${BLUE}===================== 客户端导入信息 =====================${PLAIN}"
-    echo -e "${YELLOW}[1] v2rayN / 通用客户端导入链接 (URI):${PLAIN}"
-    echo -e " ${GREEN}hysteria2://${PASS}@${SERVER_IP}:${PORT}/?sni=${SNI}&insecure=1#Hy2_${SERVER_IP}${PLAIN}"
+    echo -e "${YELLOW}[1] v2rayN / 通用客户端导入链接 (带 pinSHA256 校验):${PLAIN}"
+    echo -e " ${GREEN}hysteria2://${PASS}@${SERVER_IP}:${PORT}/?sni=${SNI}&pinSHA256=${URL_PIN}#Hy2_${SERVER_IP}${PLAIN}"
 
     if [[ -n "$CLIENT_HOP_RANGE" ]]; then
         echo -e "\n${YELLOW}[2] Mihomo / Clash Verge Rev (含端口跳跃 URI 链接):${PLAIN}"
-        echo -e " ${GREEN}hysteria2://${PASS}@${SERVER_IP}:${PORT},${CLIENT_HOP_RANGE}/?sni=${SNI}&insecure=1&mport=${PORT},${CLIENT_HOP_RANGE}#Hy2_Hop_${SERVER_IP}${PLAIN}"
+        echo -e " ${GREEN}hysteria2://${PASS}@${SERVER_IP}:${PORT},${CLIENT_HOP_RANGE}/?sni=${SNI}&pinSHA256=${URL_PIN}&mport=${PORT},${CLIENT_HOP_RANGE}#Hy2_Hop_${SERVER_IP}${PLAIN}"
         
-        echo -e "\n${YELLOW}[3] Mihomo JSON 格式配置 (列表项，逗号后带空格):${PLAIN}"
-        echo " - {\"name\": \"Hy2_Hop_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"ports\": \"${PORT},${CLIENT_HOP_RANGE}\", \"hop-interval\": \"30s\", \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"skip-cert-verify\": true, \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
+        echo -e "\n${YELLOW}[3] Mihomo JSON 格式配置 (列表项，含 pinSHA256，逗号后带空格):${PLAIN}"
+        echo " - {\"name\": \"Hy2_Hop_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"ports\": \"${PORT},${CLIENT_HOP_RANGE}\", \"hop-interval\": \"30s\", \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"pinSHA256\": \"${PIN_SHA256}\", \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
     else
-        echo -e "\n${YELLOW}[2] Mihomo JSON 格式配置 (列表项，逗号后带空格):${PLAIN}"
-        echo " - {\"name\": \"Hy2_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"port\": ${PORT}, \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"skip-cert-verify\": true, \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
+        echo -e "\n${YELLOW}[2] Mihomo JSON 格式配置 (列表项，含 pinSHA256，逗号后带空格):${PLAIN}"
+        echo " - {\"name\": \"Hy2_${SERVER_IP}\", \"type\": \"hysteria2\", \"server\": \"${SERVER_IP}\", \"port\": ${PORT}, \"password\": \"${PASS}\", \"sni\": \"${SNI}\", \"pinSHA256\": \"${PIN_SHA256}\", \"up\": \"${UP} Mbps\", \"down\": \"${DOWN} Mbps\"}"
     fi
     echo -e "${BLUE}===========================================================${PLAIN}"
 }
@@ -299,6 +311,7 @@ show_status() {
     fi
     echo -e " 连接密码   : ${YELLOW}${PASS}${PLAIN}"
     echo -e " 伪装SNI    : ${YELLOW}${SNI}${PLAIN}"
+    echo -e " 证书指纹   : ${YELLOW}${PIN_SHA256}${PLAIN}"
     
     print_node_links
 
@@ -342,6 +355,7 @@ HOP_RANGE="${HOP_RANGE}"
 CLIENT_HOP_RANGE="${CLIENT_HOP_RANGE}"
 UP_MBPS="${UP_MBPS}"
 DOWN_MBPS="${DOWN_MBPS}"
+PIN_SHA256="${PIN_SHA256}"
 ENV_SAVE
             echo -e "${GREEN}端口跳跃规则已更新生效！${PLAIN}"
             sleep 2
@@ -359,6 +373,7 @@ HOP_RANGE=""
 CLIENT_HOP_RANGE=""
 UP_MBPS="${UP_MBPS}"
 DOWN_MBPS="${DOWN_MBPS}"
+PIN_SHA256="${PIN_SHA256}"
 ENV_SAVE
                 echo -e "${GREEN}端口跳跃已关闭！${PLAIN}"
             else
@@ -458,6 +473,7 @@ chmod +x /usr/local/bin/hyx
 # 11. 安装完成
 echo -e "\n${GREEN}======================================================${PLAIN}"
 echo -e "${GREEN} Hysteria 2 安装完成！${PLAIN}"
+/usr/local/bin/hyx show_links 2>/dev/null || true
 echo -e " 随时在终端输入 ${YELLOW}hyx${PLAIN} 即可打开控制面板。"
 echo -e "${GREEN}======================================================${PLAIN}"
 EOF
